@@ -1,9 +1,6 @@
 import time
-import json
-import time
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+import httpx
 
 from .config import settings
 
@@ -18,8 +15,11 @@ class ApiFootballClient:
     def __init__(self) -> None:
         if not settings.api_football_key:
             raise ApiFootballError("API_FOOTBALL_KEY is not set in .env")
-        self._base_url = settings.api_football_base_url.rstrip("/")
-        self._headers = {"x-apisports-key": settings.api_football_key}
+        self._http = httpx.Client(
+            base_url=settings.api_football_base_url,
+            headers={"x-apisports-key": settings.api_football_key},
+            timeout=30,
+        )
         self._last_call = 0.0
         self.requests_remaining: str | None = None
 
@@ -33,37 +33,25 @@ class ApiFootballClient:
         """GET isteği atar, 'response' listesini döndürür. Hata durumunda tekrar dener."""
         for attempt in range(1, MAX_RETRIES + 1):
             self._throttle()
-            query = urlencode(params, doseq=True)
-            url = f"{self._base_url}/{path.lstrip('/')}"
-            if query:
-                url = f"{url}?{query}"
-            request = Request(url, headers=self._headers)
             try:
-                with urlopen(request, timeout=30) as resp:
-                    status_code = resp.status
-                    headers = resp.headers
-                    raw_body = resp.read()
-            except HTTPError as exc:
-                status_code = exc.code
-                headers = exc.headers
-                raw_body = b""
-            except (URLError, TimeoutError, OSError) as exc:
+                resp = self._http.get(path, params=params)
+            except httpx.TransportError as exc:
                 if attempt == MAX_RETRIES:
                     raise ApiFootballError(f"Network error on {path}: {exc}") from exc
                 time.sleep(2**attempt)
                 continue
 
-            self.requests_remaining = headers.get("x-ratelimit-requests-remaining")
+            self.requests_remaining = resp.headers.get("x-ratelimit-requests-remaining")
 
-            if status_code == 429 or status_code >= 500:
+            if resp.status_code == 429 or resp.status_code >= 500:
                 if attempt == MAX_RETRIES:
-                    raise ApiFootballError(f"{path} failed with HTTP {status_code}")
+                    raise ApiFootballError(f"{path} failed with HTTP {resp.status_code}")
                 time.sleep(2**attempt)
                 continue
-            if status_code >= 400:
-                raise ApiFootballError(f"{path} failed with HTTP {status_code}")
+            if resp.status_code >= 400:
+                raise ApiFootballError(f"{path} failed with HTTP {resp.status_code}")
 
-            body = json.loads(raw_body)
+            body = resp.json()
             errors = body.get("errors")
             # API-Football hata yokken [] döner, hata varken {"alan": "mesaj"} döner (HTTP 200 ile)
             if errors:
