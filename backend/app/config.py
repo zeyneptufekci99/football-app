@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     database_url: str = ""
     # Ücretsiz plan: dakikada 10 istek -> istekler arası en az 6.5 sn
     min_request_interval: float = 6.5
+    daily_request_limit: int = 100
 
 
 settings = Settings()

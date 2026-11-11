@@ -84,3 +84,15 @@ CREATE TABLE IF NOT EXISTS fixture_changes (
     new_kickoff      TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_changes_fixture ON fixture_changes (fixture_id);
+
+CREATE TABLE IF NOT EXISTS api_requests (
+    id             SERIAL PRIMARY KEY,
+    requested_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    endpoint       VARCHAR(60) NOT NULL,
+    params         TEXT,
+    http_status    INTEGER,          
+    ok             BOOLEAN NOT NULL,
+    api_remaining  INTEGER,         
+    error          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_api_requests_time ON api_requests (requested_at);

@@ -189,8 +189,8 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
     return stats
 
 
-def sync_league_season(league_id: int, season: int) -> dict:
-    client = ApiFootballClient()
+def sync_league_season(league_id: int, season: int, daily_limit: int | None = None) -> dict:
+    client = ApiFootballClient(daily_limit=daily_limit)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
