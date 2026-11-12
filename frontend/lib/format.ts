@@ -29,3 +29,10 @@ export function statusInfo(code: string): { label: string; tone: "done" | "live"
   if (LIVE.includes(code)) return { label: "Canlı", tone: "live" };
   return { label: code, tone: "idle" };
 }
+
+const dateOnly = new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeZone: "Europe/Istanbul" });
+
+export const formatDate = (iso: string) => dateOnly.format(new Date(iso));
+
+export const formatPercent = (n: number | null) =>
+  n === null ? "–" : `${(n * 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })}%`;

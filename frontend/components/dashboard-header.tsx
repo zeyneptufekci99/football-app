@@ -1,12 +1,13 @@
 import Link from "next/link";
+import type { League } from "@/lib/types";
 import { SeasonPicker } from "@/components/season-picker";
-import { League } from "@/lib/types";
 
 type Props = {
   leagues: League[];
   leagueId: number;
   seasonId: number;
-  active: "overview" | "fixtures";
+  active?: "overview" | "fixtures";
+  pickerBasePath?: string;
 };
 
 export function DashboardHeader({
@@ -14,6 +15,7 @@ export function DashboardHeader({
   leagueId,
   seasonId,
   active,
+  pickerBasePath,
 }: Props) {
   const tab = (isActive: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium ${
@@ -36,7 +38,12 @@ export function DashboardHeader({
           Maçlar
         </Link>
       </nav>
-      <SeasonPicker leagues={leagues} leagueId={leagueId} seasonId={seasonId} />
+      <SeasonPicker
+        leagues={leagues}
+        leagueId={leagueId}
+        seasonId={seasonId}
+        basePath={pickerBasePath}
+      />
     </div>
   );
 }

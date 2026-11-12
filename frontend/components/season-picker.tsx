@@ -11,16 +11,20 @@ import {
 } from "@/components/ui/select";
 import { League } from "@/lib/types";
 
-type Props = { leagues: League[]; leagueId: number; seasonId: number };
+type Props = {
+  leagues: League[];
+  leagueId: number;
+  seasonId: number;
+  basePath?: string;
+};
 
-export function SeasonPicker({ leagues, leagueId, seasonId }: Props) {
+export function SeasonPicker({ leagues, leagueId, seasonId, basePath }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const league = leagues.find((l) => l.id === leagueId)!;
 
-  // Sezon değişince filtreler bilerek sıfırlanır: başka sezonun takım ID'leri geçersiz olabilir
-  const go = (id: number | string) => router.push(`${pathname}?season=${id}`);
-
+  const go = (id: number | string) =>
+    router.push(`${basePath ?? pathname}?season=${id}`);
   function onLeagueChange(value: string | null) {
     if (!value) return;
     const next = leagues.find((l) => String(l.id) === value);
