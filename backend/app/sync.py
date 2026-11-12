@@ -2,7 +2,16 @@ import argparse
 from datetime import datetime
 
 from .api_client import ApiFootballClient, ApiFootballError
+from .config import settings
 from .db import get_connection
+
+
+class SyncAlreadyRunning(Exception):
+    pass
+
+
+class SyncTooRecent(Exception):
+    pass
 
 
 def parse_kickoff(value: str | None) -> datetime | None:
@@ -43,10 +52,66 @@ def normalize_fixture(item: dict) -> dict | None:
     }
 
 
-def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: int) -> dict:
-    stats = {"teams_upserted": 0, "fixtures_inserted": 0, "fixtures_updated": 0, "fixtures_skipped": 0}
+# ---------- senkronizasyona başlamadan önce kontroller ----------
 
-    # 1) Lig ve sezon
+def check_can_start(cur, league_id: int, season: int, force: bool) -> None:
+    cur.execute(
+        """
+        SELECT 1 FROM sync_runs
+        WHERE league_id = %s AND season_year = %s AND status = 'running'
+          AND started_at > now() - interval '10 minutes'
+        """,
+        (league_id, season),
+    )
+    if cur.fetchone():
+        raise SyncAlreadyRunning("A sync for this league and season is already running")
+
+    if not force:
+        cur.execute(
+            """
+            SELECT finished_at FROM sync_runs
+            WHERE league_id = %s AND season_year = %s AND status = 'success'
+              AND finished_at > now() - make_interval(mins => %s)
+            ORDER BY id DESC LIMIT 1
+            """,
+            (league_id, season, settings.min_sync_interval_minutes),
+        )
+        row = cur.fetchone()
+        if row:
+            raise SyncTooRecent(
+                f"Synced recently (at {row[0]:%Y-%m-%d %H:%M} UTC). "
+                f"Cooldown is {settings.min_sync_interval_minutes} minutes; use force to override"
+            )
+
+
+def preflight(league_id: int, season: int, force: bool) -> None:
+    """API'den hızlı hata dönebilmek için, işi başlatmadan önce çağrılır."""
+    with get_connection(autocommit=True) as conn:
+        with conn.cursor() as cur:
+            check_can_start(cur, league_id, season, force)
+
+
+def needs_full_sync(cur, league_id: int, season: int) -> bool:
+    """Sezon veritabanında yoksa ya da son tam senkronizasyon eskiyse True."""
+    cur.execute(
+        """
+        SELECT
+          NOT EXISTS (SELECT 1 FROM seasons WHERE league_id = %(l)s AND year = %(y)s)
+          OR NOT EXISTS (
+              SELECT 1 FROM sync_runs
+              WHERE league_id = %(l)s AND season_year = %(y)s
+                AND status = 'success' AND mode = 'full'
+                AND finished_at > now() - make_interval(days => %(d)s)
+          )
+        """,
+        {"l": league_id, "y": season, "d": settings.full_sync_every_days},
+    )
+    return cur.fetchone()[0]
+
+
+# ---------- veri çekme adımları ----------
+
+def _sync_league_and_season(conn, client: ApiFootballClient, league_id: int, season: int) -> int:
     leagues = client.get("/leagues", id=league_id, season=season)
     if not leagues:
         raise ApiFootballError(f"League {league_id} not found for season {season}")
@@ -82,9 +147,10 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
             (league_id, season, season_info.get("start"), season_info.get("end"),
              bool(season_info.get("current"))),
         )
-        season_id = cur.fetchone()[0]
+        return cur.fetchone()[0]
 
-    # 2) Takımlar
+
+def _sync_teams(conn, client: ApiFootballClient, league_id: int, season: int) -> tuple[set[int], int]:
     team_ids: set[int] = set()
     with conn.cursor() as cur:
         for item in client.get("/teams", league=league_id, season=season):
@@ -107,9 +173,23 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
                  team.get("logo"), (item.get("venue") or {}).get("name")),
             )
             team_ids.add(team["id"])
-            stats["teams_upserted"] += 1
+    return team_ids, len(team_ids)
 
-    # 3) Maçlar (aynı ID iki kez gelirse sonuncusu geçerli)
+
+def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: int, full: bool) -> dict:
+    stats = {"teams_upserted": 0, "fixtures_inserted": 0, "fixtures_updated": 0,
+             "fixtures_skipped": 0, "mode": "full" if full else "fixtures"}
+
+    if full:
+        season_id = _sync_league_and_season(conn, client, league_id, season)
+        team_ids, stats["teams_upserted"] = _sync_teams(conn, client, league_id, season)
+    else:
+        row = conn.execute(
+            "SELECT id FROM seasons WHERE league_id = %s AND year = %s", (league_id, season)
+        ).fetchone()
+        season_id, team_ids = row[0], set()
+
+    # Maçlar (aynı ID iki kez gelirse sonuncusu geçerli)
     fixtures: dict[int, dict] = {}
     for raw in client.get("/fixtures", league=league_id, season=season):
         fx = normalize_fixture(raw)
@@ -119,7 +199,7 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
             fixtures[fx["id"]] = fx
 
     with conn.cursor() as cur:
-        # Maçlarda geçen ama /teams yanıtında olmayan takımlar: mevcut kaydı ezmeden ekle
+        # Maçlarda geçen ama veritabanında olmayan takımlar: mevcut kaydı ezmeden ekle
         for fx in fixtures.values():
             for side in (fx["home"], fx["away"]):
                 if side["id"] not in team_ids:
@@ -135,7 +215,7 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
                 (season_id, tid),
             )
 
-        # 4) Mevcut maçlarla karşılaştır: yeni -> ekle, değişen -> güncelle + geçmişe yaz
+        # Mevcut maçlarla karşılaştır: yeni -> ekle, değişen -> güncelle + geçmişe yaz
         cur.execute(
             """
             SELECT id, round, kickoff, status_short, status_long, home_team_id, away_team_id,
@@ -189,38 +269,43 @@ def _run(conn, client: ApiFootballClient, run_id: int, league_id: int, season: i
     return stats
 
 
-def sync_league_season(league_id: int, season: int, daily_limit: int | None = None) -> dict:
+def sync_league_season(league_id: int, season: int, daily_limit: int | None = None,
+                       force: bool = False) -> dict:
     client = ApiFootballClient(daily_limit=daily_limit)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            # Aynı lig-sezon için kontrol ve kayıt oluşturma tek işlemde, kilit altında
+            cur.execute("SELECT pg_advisory_xact_lock(%s, %s)", (league_id, season))
+            check_can_start(cur, league_id, season, force)
+            full = needs_full_sync(cur, league_id, season)
             cur.execute(
-                "INSERT INTO sync_runs (league_id, season_year) VALUES (%s, %s) RETURNING id",
-                (league_id, season),
+                "INSERT INTO sync_runs (league_id, season_year, mode) VALUES (%s, %s, %s) RETURNING id",
+                (league_id, season, "full" if full else "fixtures"),
             )
             run_id = cur.fetchone()[0]
         conn.commit()  # çalışma kaydı, veri yazımı başarısız olsa bile kalır
 
         try:
-            stats = _run(conn, client, run_id, league_id, season)
+            stats = _run(conn, client, run_id, league_id, season, full)
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    UPDATE sync_runs SET status='success', finished_at=now(),
+                    UPDATE sync_runs SET status='success', finished_at=now(), api_calls=%s,
                         teams_upserted=%s, fixtures_inserted=%s, fixtures_updated=%s, fixtures_skipped=%s
                     WHERE id=%s
                     """,
-                    (stats["teams_upserted"], stats["fixtures_inserted"],
+                    (client.calls, stats["teams_upserted"], stats["fixtures_inserted"],
                      stats["fixtures_updated"], stats["fixtures_skipped"], run_id),
                 )
             conn.commit()
-            return {"run_id": run_id, **stats}
+            return {"run_id": run_id, "api_calls": client.calls, **stats}
         except Exception as exc:
             conn.rollback()  # yarım kalan veri yazımını geri al
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE sync_runs SET status='failed', finished_at=now(), error_message=%s WHERE id=%s",
-                    (str(exc)[:1000], run_id),
+                    "UPDATE sync_runs SET status='failed', finished_at=now(), api_calls=%s, error_message=%s WHERE id=%s",
+                    (client.calls, str(exc)[:1000], run_id),
                 )
             conn.commit()
             raise
@@ -232,10 +317,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Sync one league season from API-Football")
     parser.add_argument("--league", type=int, required=True, help="API-Football league id (e.g. 203)")
     parser.add_argument("--season", type=int, required=True, help="Season start year (e.g. 2024)")
+    parser.add_argument("--force", action="store_true", help="Ignore the cooldown period")
     args = parser.parse_args()
 
-    result = sync_league_season(args.league, args.season)
-    print(result)
+    try:
+        print(sync_league_season(args.league, args.season, force=args.force))
+    except (SyncAlreadyRunning, SyncTooRecent) as exc:
+        print(f"Skipped: {exc}")
 
 
 if __name__ == "__main__":

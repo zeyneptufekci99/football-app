@@ -21,5 +21,13 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/code
+  scheduler:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python -m app.scheduler
+    restart: unless-stopped
 volumes:
   pgdata:

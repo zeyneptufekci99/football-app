@@ -9,9 +9,10 @@ from psycopg.rows import dict_row
 
 from .db import get_connection
 from .schemas import (
-    FixtureOut, LeagueOut, RecentMatch, StandingRow, SyncRequest, SyncRunOut, TeamOut, TeamStats, UsageOut
+    FixtureOut, LeagueOut, OverviewOut, RecentMatch, StandingRow, SyncRequest, SyncRunOut,
+    TeamOut, TeamStats, UsageOut,
 )
-from .usage import get_usage
+from .sync import SyncAlreadyRunning, SyncTooRecent, preflight, sync_league_season
 from .sync import sync_league_season
 
 log = logging.getLogger("football")
@@ -56,6 +57,58 @@ def list_leagues(conn=Depends(get_db)):
         """
     ).fetchall()
 
+@app.get("/seasons/{season_id}/overview", response_model=OverviewOut)
+def overview(season_id: int, conn=Depends(get_db)):
+    """Genel görünüm: sayılar veritabanındaki maçlardan hesaplanır."""
+    s = conn.execute(
+        """
+        SELECT s.id AS season_id, s.year, l.id AS league_id, l.name AS league_name
+        FROM seasons s JOIN leagues l ON l.id = s.league_id WHERE s.id = %s
+        """,
+        (season_id,),
+    ).fetchone()
+    if not s:
+        raise HTTPException(404, f"Season {season_id} not found")
+
+    c = conn.execute(
+        """
+        SELECT count(*) AS total,
+               count(*) FILTER (WHERE status_short = ANY(%(fin)s)
+                                AND home_goals IS NOT NULL AND away_goals IS NOT NULL) AS played,
+               COALESCE(sum(home_goals + away_goals) FILTER (
+                   WHERE status_short = ANY(%(fin)s)
+                     AND home_goals IS NOT NULL AND away_goals IS NOT NULL), 0) AS goals
+        FROM fixtures WHERE season_id = %(s)s
+        """,
+        {"s": season_id, "fin": FINISHED},
+    ).fetchone()
+
+    last = conn.execute(
+        """
+        SELECT status, finished_at FROM sync_runs
+        WHERE league_id = %s AND season_year = %s AND status IN ('success', 'failed')
+        ORDER BY id DESC LIMIT 1
+        """,
+        (s["league_id"], s["year"]),
+    ).fetchone()
+    last_ok = conn.execute(
+        """
+        SELECT max(finished_at) AS at FROM sync_runs
+        WHERE league_id = %s AND season_year = %s AND status = 'success'
+        """,
+        (s["league_id"], s["year"]),
+    ).fetchone()
+
+    return {
+        **s,
+        "total_fixtures": c["total"],
+        "played": c["played"],
+        "unfinished": c["total"] - c["played"],
+        "total_goals": c["goals"],
+        "goals_per_match": ratio(c["goals"], c["played"]),
+        "last_sync_at": last_ok["at"],
+        "last_sync_status": last["status"] if last else None,
+    }
 
 @app.get("/seasons/{season_id}/teams", response_model=list[TeamOut])
 def list_teams(season_id: int, conn=Depends(get_db)):
@@ -211,8 +264,28 @@ def team_stats(season_id: int, team_id: int, conn=Depends(get_db)):
         ga = sum(m["goals_against"] for m in ms)
         return {"n": n, "won": won, "drawn": drawn, "lost": n - won - drawn, "gf": gf, "ga": ga}
 
-    total, last5_matches = summarize(matches), matches[:5]
+    def split(ms: list[dict]) -> dict:
+        t = summarize(ms)
+        return {
+            "played": t["n"], "won": t["won"], "drawn": t["drawn"], "lost": t["lost"],
+            "points": t["won"] * 3 + t["drawn"],
+            "win_rate": ratio(t["won"], t["n"]),
+            "goals_for_per_match": ratio(t["gf"], t["n"]),
+            "goals_against_per_match": ratio(t["ga"], t["n"]),
+        }
+
+    total = summarize(matches)
+    last5_matches = matches[:5]
     last5 = summarize(last5_matches)
+
+    # Grafik için maç maç birikmiş puan (eskiden yeniye)
+    cumulative, progress = 0, []
+    for i, m in enumerate(reversed(matches), start=1):
+        cumulative += {"W": 3, "D": 1, "L": 0}[m["result"]]
+        progress.append({
+            "match_no": i, "kickoff": m["kickoff"], "opponent": m["opponent"],
+            "cumulative_points": cumulative,
+        })
 
     return {
         "team_id": team_id, "team_name": team["name"], "season_id": season_id,
@@ -227,31 +300,30 @@ def team_stats(season_id: int, team_id: int, conn=Depends(get_db)):
         "last_5_goals_for_per_match": ratio(last5["gf"], last5["n"]),
         "last_5_goals_against_per_match": ratio(last5["ga"], last5["n"]),
         "last_5_matches": last5_matches,
+        "home": split([m for m in matches if m["is_home"]]),
+        "away": split([m for m in matches if not m["is_home"]]),
+        "points_progress": progress,
     }
 
-
-def _background_sync(league_id: int, season: int) -> None:
+def _background_sync(league_id: int, season: int, force: bool) -> None:
     try:
-        sync_league_season(league_id, season)
+        sync_league_season(league_id, season, force=force)
+    except (SyncAlreadyRunning, SyncTooRecent) as exc:
+        log.info("Sync skipped: %s", exc)
     except Exception:
         log.exception("Background sync failed (league=%s, season=%s)", league_id, season)
 
 
 @app.post("/sync", status_code=202)
-def trigger_sync(body: SyncRequest, background: BackgroundTasks, conn=Depends(get_db)):
-    running = conn.execute(
-        """
-        SELECT 1 FROM sync_runs
-        WHERE league_id = %s AND season_year = %s AND status = 'running'
-          AND started_at > now() - interval '10 minutes'
-        """,
-        (body.league_id, body.season),
-    ).fetchone()
-    if running:
-        raise HTTPException(409, "A sync for this league and season is already running")
-    background.add_task(_background_sync, body.league_id, body.season)
+def trigger_sync(body: SyncRequest, background: BackgroundTasks):
+    try:
+        preflight(body.league_id, body.season, body.force)
+    except SyncAlreadyRunning as exc:
+        raise HTTPException(409, str(exc))
+    except SyncTooRecent as exc:
+        raise HTTPException(409, str(exc))
+    background.add_task(_background_sync, body.league_id, body.season, body.force)
     return {"message": "Sync started", "league_id": body.league_id, "season": body.season}
-
 
 @app.get("/sync/status", response_model=SyncRunOut)
 def sync_status(league_id: int | None = None, season: int | None = None, conn=Depends(get_db)):

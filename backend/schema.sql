@@ -96,3 +96,7 @@ CREATE TABLE IF NOT EXISTS api_requests (
     error          TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_api_requests_time ON api_requests (requested_at);
+
+ALTER TABLE sync_runs
+    ADD COLUMN IF NOT EXISTS mode VARCHAR(10) NOT NULL DEFAULT 'full',
+    ADD COLUMN IF NOT EXISTS api_calls INTEGER NOT NULL DEFAULT 0;

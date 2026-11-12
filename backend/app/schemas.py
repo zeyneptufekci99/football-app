@@ -69,6 +69,23 @@ class RecentMatch(BaseModel):
     result: str  # W | D | L
 
 
+class SplitStats(BaseModel):
+    played: int
+    won: int
+    drawn: int
+    lost: int
+    points: int
+    win_rate: float | None
+    goals_for_per_match: float | None
+    goals_against_per_match: float | None
+
+
+class PointsPoint(BaseModel):
+    match_no: int
+    kickoff: datetime
+    opponent: str
+    cumulative_points: int
+
 class TeamStats(BaseModel):
     team_id: int
     team_name: str
@@ -89,11 +106,15 @@ class TeamStats(BaseModel):
     last_5_goals_for_per_match: float | None
     last_5_goals_against_per_match: float | None
     last_5_matches: list[RecentMatch]  # en yeni maç ilk sırada
+    home: SplitStats
+    away: SplitStats
+    points_progress: list[PointsPoint]  # eskiden yeniye, grafik için
 
 
 class SyncRequest(BaseModel):
     league_id: int = Field(gt=0)
     season: int = Field(ge=2000, le=2100)
+    force: bool = False
 
 
 class SyncRunOut(BaseModel):
@@ -108,6 +129,8 @@ class SyncRunOut(BaseModel):
     fixtures_updated: int
     fixtures_skipped: int
     error_message: str | None
+    mode: str
+    api_calls: int
 
 class UsageOut(BaseModel):
     daily_limit: int
@@ -117,3 +140,16 @@ class UsageOut(BaseModel):
     api_reported_remaining: int | None
     last_request_at: datetime | None
     resets_at: datetime | None
+
+class OverviewOut(BaseModel):
+    season_id: int
+    league_id: int
+    league_name: str
+    year: int
+    total_fixtures: int
+    played: int
+    unfinished: int
+    total_goals: int
+    goals_per_match: float | None
+    last_sync_at: datetime | None
+    last_sync_status: str | None

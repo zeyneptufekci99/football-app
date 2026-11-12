@@ -67,6 +67,7 @@ class ApiFootballClient:
         )
         self._last_call = 0.0
         self.requests_remaining: int | None = None
+        self.calls = 0
 
     def _throttle(self) -> None:
         wait = settings.min_request_interval - (time.monotonic() - self._last_call)
@@ -84,6 +85,7 @@ class ApiFootballClient:
         for attempt in range(1, MAX_RETRIES + 1):
             self._check_budget()
             self._throttle()
+            self.calls += 1
             try:
                 resp = self._http.get(path, params=params)
             except httpx.TransportError as exc:
