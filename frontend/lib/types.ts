@@ -113,3 +113,29 @@ export type TeamStats = {
   away: SplitStats;
   points_progress: PointsPoint[];
 };
+
+export type SyncRun = {
+  id: number;
+  league_id: number;
+  season_year: number;
+  started_at: string;
+  finished_at: string | null;
+  status: "running" | "success" | "failed";
+  teams_upserted: number;
+  fixtures_inserted: number;
+  fixtures_updated: number;
+  fixtures_skipped: number;
+  error_message: string | null;
+  mode: string;
+  api_calls: number;
+};
+
+export type Usage = {
+  daily_limit: number;
+  used_today: number;
+  failed_today: number;
+  remaining: number;
+  api_reported_remaining: number | null;
+  last_request_at: string | null;
+  resets_at: string | null;
+};

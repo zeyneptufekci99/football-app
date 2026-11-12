@@ -36,3 +36,9 @@ export const formatDate = (iso: string) => dateOnly.format(new Date(iso));
 
 export const formatPercent = (n: number | null) =>
   n === null ? "–" : `${(n * 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })}%`;
+
+export const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
+
+const timeOnly = new Intl.DateTimeFormat("tr-TR", { timeStyle: "short", timeZone: "Europe/Istanbul" });
+
+export const formatTime = (iso: string) => timeOnly.format(new Date(iso));

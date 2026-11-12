@@ -4,11 +4,13 @@ import type {
   League,
   Overview,
   StandingRow,
+  SyncRun,
   TeamOption,
   TeamStats,
+  Usage,
 } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export class ApiError extends Error {
   constructor(
@@ -38,5 +40,15 @@ export const api = {
       if (value !== undefined && value !== "") params.set(key, String(value));
     }
     return get<Fixture[]>(`/seasons/${seasonId}/fixtures?${params}`);
+  },
+  usage: () => get<Usage>("/usage"),
+  // Hiç senkronizasyon yoksa backend 404 döner; bu bir hata değil
+  syncStatus: async (leagueId: number, year: number): Promise<SyncRun | null> => {
+    try {
+      return await get<SyncRun>(`/sync/status?league_id=${leagueId}&season=${year}`);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
+    }
   },
 };

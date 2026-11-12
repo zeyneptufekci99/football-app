@@ -3,11 +3,12 @@ from datetime import date
 from typing import Iterator
 
 import psycopg
+
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 from .config import settings 
-
+from .usage import get_usage
 from .db import get_connection
 from .schemas import (
     FixtureOut, LeagueOut, OverviewOut, RecentMatch, StandingRow, SyncRequest, SyncRunOut,

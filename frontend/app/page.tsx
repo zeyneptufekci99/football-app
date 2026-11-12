@@ -1,9 +1,10 @@
 import { api } from "@/lib/api";
-import { formatDateTime, formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber, hoursSince } from "@/lib/format";
 import { resolveSelection, seasonLabel } from "@/lib/season";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { NoData } from "@/components/no-data";
 import { StandingsTable } from "@/components/standings-table";
+import { SyncButton } from "@/components/sync-button";
 import { Card, CardContent } from "@/components/ui/card";
 
 function StatCard({
@@ -26,6 +27,17 @@ function StatCard({
   );
 }
 
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      role="alert"
+      className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"
+    >
+      {children}
+    </p>
+  );
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -41,6 +53,13 @@ export default async function Home({
     api.standings(season.id),
   ]);
 
+  const failed = overview.last_sync_status === "failed";
+  const stale =
+    !failed &&
+    overview.unfinished > 0 &&
+    overview.last_sync_at !== null &&
+    hoursSince(overview.last_sync_at) > 24;
+
   return (
     <div>
       <DashboardHeader
@@ -54,14 +73,22 @@ export default async function Home({
         {league.name} {seasonLabel(season.year)}
       </h1>
 
-      {overview.last_sync_status === "failed" && (
-        <p
-          role="alert"
-          className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"
-        >
+      {failed && (
+        <Notice>
           Son veri güncellemesi başarısız oldu. Gösterilen bilgiler
           veritabanındaki son başarılı güncellemeye aittir.
-        </p>
+        </Notice>
+      )}
+      {stale && (
+        <Notice>
+          Bu sezonda tamamlanmamış maçlar var ve veriler 24 saatten uzun süredir
+          güncellenmedi. Sonuçlar eski olabilir.
+        </Notice>
+      )}
+      {overview.last_sync_at === null && (
+        <Notice>
+          Bu lig ve sezon için henüz başarılı bir senkronizasyon kaydı yok.
+        </Notice>
       )}
 
       <section
@@ -91,6 +118,10 @@ export default async function Home({
           }
         />
       </section>
+
+      <div className="mt-4">
+        <SyncButton leagueId={league.id} year={season.year} />
+      </div>
 
       <h2 className="mb-3 mt-8 text-xl font-semibold">Puan durumu</h2>
       <StandingsTable rows={rows} seasonId={season.id} />
