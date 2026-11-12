@@ -1,31 +1,12 @@
-import { api } from "@/lib/api";
-import { formatDateTime, formatNumber, hoursSince } from "@/lib/format";
-import { resolveSelection, seasonLabel } from "@/lib/season";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { NoData } from "@/components/no-data";
 import { StandingsTable } from "@/components/standings-table";
+import { StatCard, StatCardProps } from "@/components/stat-card";
+import { StatCardSection } from "@/components/stat-card-section";
 import { SyncButton } from "@/components/sync-button";
-import { Card, CardContent } from "@/components/ui/card";
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <Card className="bg-white">
-      <CardContent className="p-4">
-        <p className="text-sm text-neutral-600">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
-      </CardContent>
-    </Card>
-  );
-}
+import { api } from "@/lib/api";
+import { formatDateTime, formatNumber, hoursSince } from "@/lib/format";
+import { resolveSelection, seasonLabel } from "@/lib/season";
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -60,6 +41,29 @@ export default async function Home({
     overview.last_sync_at !== null &&
     hoursSince(overview.last_sync_at) > 24;
 
+  const statCardsData: StatCardProps[] = [
+    {
+      label: "Oynanan maç",
+      value: String(overview.played),
+      hint: `Toplam ${overview.total_fixtures} maç`,
+    },
+    {
+      label: "Tamamlanmamış maç",
+      value: String(overview.unfinished),
+    },
+    {
+      label: "Toplam gol",
+      value: String(overview.total_goals),
+      hint: `Maç başına ${formatNumber(overview.goals_per_match)}`,
+    },
+    {
+      label: "Son veri güncellemesi",
+      value: overview.last_sync_at
+        ? formatDateTime(overview.last_sync_at)
+        : "Henüz yok",
+    },
+  ];
+
   return (
     <div>
       <DashboardHeader
@@ -91,33 +95,11 @@ export default async function Home({
         </Notice>
       )}
 
-      <section
+      <StatCardSection
+        cards={statCardsData}
         className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
-        aria-label="Genel görünüm"
-      >
-        <StatCard
-          label="Oynanan maç"
-          value={String(overview.played)}
-          hint={`Toplam ${overview.total_fixtures} maç`}
-        />
-        <StatCard
-          label="Tamamlanmamış maç"
-          value={String(overview.unfinished)}
-        />
-        <StatCard
-          label="Toplam gol"
-          value={String(overview.total_goals)}
-          hint={`Maç başına ${formatNumber(overview.goals_per_match)}`}
-        />
-        <StatCard
-          label="Son veri güncellemesi"
-          value={
-            overview.last_sync_at
-              ? formatDateTime(overview.last_sync_at)
-              : "Henüz yok"
-          }
-        />
-      </section>
+        title="Genel görünüm"
+      />
 
       <div className="mt-4">
         <SyncButton leagueId={league.id} year={season.year} />

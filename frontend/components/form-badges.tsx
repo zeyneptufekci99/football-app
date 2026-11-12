@@ -11,7 +11,11 @@ const STYLE: Record<
   L: { label: "M", className: "bg-red-700 text-white", name: "Mağlubiyet" },
 };
 
-export function FormBadges({ form }: { form: string }) {
+type FormBadgesProps = {
+  form: string;
+};
+
+export function FormBadges({ form }: FormBadgesProps) {
   if (!form) return <span className="text-sm text-neutral-600">–</span>;
   return (
     <span className="flex gap-1" aria-label={`Son ${form.length} maç`}>

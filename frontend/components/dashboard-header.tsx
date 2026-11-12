@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { League } from "@/lib/types";
 import { SeasonPicker } from "@/components/season-picker";
 
-type Props = {
+type DashboardHeaderProps = {
   leagues: League[];
   leagueId: number;
   seasonId: number;
@@ -16,7 +16,7 @@ export function DashboardHeader({
   seasonId,
   active,
   pickerBasePath,
-}: Props) {
+}: DashboardHeaderProps) {
   const tab = (isActive: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium ${
       isActive ? "bg-neutral-900 text-white" : "hover:bg-neutral-200"

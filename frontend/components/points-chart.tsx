@@ -12,13 +12,12 @@ import {
 import type { PointsPoint } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 
-function ChartTooltip({
-  active,
-  payload,
-}: {
+type ChartTooltipProps = {
   active?: boolean;
   payload?: { payload: PointsPoint }[];
-}) {
+};
+
+function ChartTooltip({ active, payload }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (

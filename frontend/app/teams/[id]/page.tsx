@@ -4,10 +4,7 @@ import type { SplitStats, TeamStats } from "@/lib/types";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { resolveSelection, seasonLabel } from "@/lib/season";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { FormBadges } from "@/components/form-badges";
-import { NoData } from "@/components/no-data";
-import { PointsChart } from "@/components/points-chart";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCardProps } from "@/components/stat-card";
 import {
   Table,
   TableBody,
@@ -16,26 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <Card className="bg-white">
-      <CardContent className="p-4">
-        <p className="text-sm text-neutral-600">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
-      </CardContent>
-    </Card>
-  );
-}
+import { PointsChart } from "@/components/points-chart";
+import { FormBadges } from "@/components/form-badges";
+import { NoData } from "@/components/no-data";
+import { CardContainer } from "@/components/card-container";
+import { StatCardSection } from "@/components/stat-card-section";
 
 function totalAsSplit(s: TeamStats): SplitStats {
   return {
@@ -75,7 +57,6 @@ export default async function TeamPage({
     throw e;
   }
 
-  const num = "text-right tabular-nums";
   const rows: { label: string; pick: (s: SplitStats) => string }[] = [
     { label: "Oynanan maç", pick: (s) => String(s.played) },
     { label: "Galibiyet", pick: (s) => String(s.won) },
@@ -94,6 +75,28 @@ export default async function TeamPage({
   ];
   const columns = [stats.home, stats.away, totalAsSplit(stats)];
 
+  const statCardsData: StatCardProps[] = [
+    {
+      label: "Puan",
+      value: String(stats.points),
+      hint: `${stats.played} maç`,
+    },
+    {
+      label: "Galibiyet oranı",
+      value: formatPercent(stats.win_rate),
+    },
+    {
+      label: "Maç başına atılan gol",
+      value: formatNumber(stats.goals_for_per_match),
+      hint: `Toplam ${stats.goals_for}`,
+    },
+    {
+      label: "Maç başına yenilen gol",
+      value: formatNumber(stats.goals_against_per_match),
+      hint: `Toplam ${stats.goals_against}`,
+    },
+  ];
+
   return (
     <div>
       <DashboardHeader
@@ -107,37 +110,14 @@ export default async function TeamPage({
       <p className="mt-1 text-sm text-neutral-600">
         {league.name} {seasonLabel(season.year)}
       </p>
-
-      <section
+      <StatCardSection
+        cards={statCardsData}
         className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
-        aria-label="Sezon özeti"
-      >
-        <StatCard
-          label="Puan"
-          value={String(stats.points)}
-          hint={`${stats.played} maç`}
-        />
-        <StatCard
-          label="Galibiyet oranı"
-          value={formatPercent(stats.win_rate)}
-        />
-        <StatCard
-          label="Maç başına atılan gol"
-          value={formatNumber(stats.goals_for_per_match)}
-          hint={`Toplam ${stats.goals_for}`}
-        />
-        <StatCard
-          label="Maç başına yenilen gol"
-          value={formatNumber(stats.goals_against_per_match)}
-          hint={`Toplam ${stats.goals_against}`}
-        />
-      </section>
+        title="Sezon özeti"
+      />
 
-      <Card className="mt-6 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg">Son 5 maç</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CardContainer contentClassName="space-y-4" header="Son 5 maç">
+        <>
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-neutral-600">Form (eskiden yeniye):</span>
@@ -184,49 +164,39 @@ export default async function TeamPage({
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </>
+      </CardContainer>
 
-      <Card className="mt-6 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            İç saha ve deplasman performansı
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead className={num}>İç saha</TableHead>
-                <TableHead className={num}>Deplasman</TableHead>
-                <TableHead className={num}>Toplam</TableHead>
+      <CardContainer header="İç saha ve deplasman performansı">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead />
+              <TableHead className="text-right tabular-num">İç saha</TableHead>
+              <TableHead className="text-right tabular-num">
+                Deplasman
+              </TableHead>
+              <TableHead className="text-right tabular-num">Toplam</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.label}>
+                <TableCell>{r.label}</TableCell>
+                {columns.map((c, i) => (
+                  <TableCell key={i} className="text-right tabular-num">
+                    {r.pick(c)}
+                  </TableCell>
+                ))}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.label}>
-                  <TableCell>{r.label}</TableCell>
-                  {columns.map((c, i) => (
-                    <TableCell key={i} className={num}>
-                      {r.pick(c)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContainer>
 
-      <Card className="mt-6 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg">Sezon boyunca birikmiş puan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PointsChart data={stats.points_progress} />
-        </CardContent>
-      </Card>
+      <CardContainer header="Sezon boyunca birikmiş puan">
+        <PointsChart data={stats.points_progress} />
+      </CardContainer>
     </div>
   );
 }

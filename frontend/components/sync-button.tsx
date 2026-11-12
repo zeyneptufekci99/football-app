@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button";
 import { getSyncStatus, startSync } from "@/app/action";
 
 const POLL_MS = 3000;
-const MAX_POLLS = 40; // en fazla 2 dakika bekler
+const MAX_POLLS = 40;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function SyncButton({
-  leagueId,
-  year,
-}: {
+type SyncButton = {
   leagueId: number;
   year: number;
-}) {
+};
+export function SyncButton({ leagueId, year }: SyncButton) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState<{
