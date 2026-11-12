@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     auto_sync_budget: int = 70        
     scheduler_tick_seconds: int = 900  
     min_sync_interval_minutes: int = 15 
-    full_sync_every_days: int = 7 
+    full_sync_every_days: int = 7
+    app_timezone: str = "Europe/Istanbul" 
 
 
 settings = Settings()

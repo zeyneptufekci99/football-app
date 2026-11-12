@@ -6,6 +6,7 @@ import psycopg
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
+from .config import settings 
 
 from .db import get_connection
 from .schemas import (
@@ -140,11 +141,13 @@ def list_fixtures(
         where.append("(f.home_team_id = %s OR f.away_team_id = %s)")
         params += [team_id, team_id]
     if date_from:
-        where.append("f.kickoff >= %s::date")
-        params.append(date_from)
+      
+        where.append("f.kickoff >= ((%s::date)::timestamp AT TIME ZONE %s)")
+        params += [date_from, settings.app_timezone]
     if date_to:
-        where.append("f.kickoff < (%s::date + 1)")
-        params.append(date_to)
+      
+        where.append("f.kickoff < (((%s::date + 1))::timestamp AT TIME ZONE %s)")
+        params += [date_to, settings.app_timezone]
     if status:
         where.append("f.status_short = %s")
         params.append(status.upper())

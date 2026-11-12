@@ -46,7 +46,7 @@ function TeamLink({
           alt=""
           width={22}
           height={22}
-          className="h-[22px] w-[22px] shrink-0 object-contain"
+          className="h-5.5 w-5.5 shrink-0 object-contain"
         />
       )}
       <span>{team.name}</span>
