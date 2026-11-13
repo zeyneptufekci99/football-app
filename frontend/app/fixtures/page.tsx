@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Fixture } from "@/lib/types";
@@ -56,7 +57,7 @@ function TeamLink({
   );
 }
 
-export default async function FixturesPage({
+async function FixturesContent({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
@@ -165,7 +166,7 @@ export default async function FixturesPage({
 
       <div className="flex items-center justify-between text-sm">
         {page > 1 ? (
-          <Link href={pageHref(page - 1)} className="underline">
+          <Link href={pageHref(page - 1)} aria-label="Önceki sayfa">
             <div className="flex p-2 rounded-md items-center border border-primary">
               <MdOutlineChevronLeft color="oklch(0.488 0.2 264)" size={20} />
             </div>
@@ -175,7 +176,7 @@ export default async function FixturesPage({
         )}
         <span className="text-neutral-600">Sayfa {page}</span>
         {hasNext ? (
-          <Link href={pageHref(page + 1)} className="underline">
+          <Link href={pageHref(page + 1)} aria-label="Sonraki sayfa">
             <div className="flex p-2 rounded-md items-center border border-primary">
               <MdOutlineChevronRight color="oklch(0.488 0.2 264)" size={20} />
             </div>
@@ -185,5 +186,19 @@ export default async function FixturesPage({
         )}
       </div>
     </div>
+  );
+}
+
+export default function FixturesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  return (
+    <Suspense
+      fallback={<p className="text-sm text-neutral-600">Yükleniyor…</p>}
+    >
+      <FixturesContent searchParams={searchParams} />
+    </Suspense>
   );
 }
