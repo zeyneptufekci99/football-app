@@ -1,29 +1,18 @@
+import { Suspense } from "react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { NoData } from "@/components/no-data";
 import { StandingsTable } from "@/components/standings-table";
-import { StatCard, StatCardProps } from "@/components/stat-card";
+import { StatCardProps } from "@/components/stat-card";
 import { StatCardSection } from "@/components/stat-card-section";
 import { SyncButton } from "@/components/sync-button";
 import { api } from "@/lib/api";
 import { formatDateTime, formatNumber, hoursSince } from "@/lib/format";
 import { resolveSelection, seasonLabel } from "@/lib/season";
+import { Notice } from "@/components/notice";
 
-function Notice({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      role="alert"
-      className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"
-    >
-      {children}
-    </p>
-  );
-}
+type SearchParams = Promise<{ season?: string }>;
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ season?: string }>;
-}) {
+async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
   const { season: seasonParam } = await searchParams;
   const leagues = (await api.leagues()).filter((l) => l.seasons.length > 0);
   if (leagues.length === 0) return <NoData />;
@@ -108,5 +97,15 @@ export default async function Home({
       <h2 className="mb-3 mt-8 text-xl font-semibold">Puan durumu</h2>
       <StandingsTable rows={rows} seasonId={season.id} />
     </div>
+  );
+}
+
+export default function Home({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={<p className="text-sm text-neutral-600">Yükleniyor…</p>}
+    >
+      <HomeContent searchParams={searchParams} />
+    </Suspense>
   );
 }

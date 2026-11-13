@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { UsageBadge } from "@/components/usage-badge";
+import { Suspense } from "react";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"] });
 
@@ -23,7 +24,15 @@ export default function RootLayout({
         <header className="border-b bg-white">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4">
             <span className="text-lg font-semibold">Futbol Panosu</span>
-            <UsageBadge />
+            <Suspense
+              fallback={
+                <span className="text-xs text-neutral-500">
+                  API kullanımı yükleniyor…
+                </span>
+              }
+            >
+              <UsageBadge />
+            </Suspense>
           </div>
         </header>
         <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
