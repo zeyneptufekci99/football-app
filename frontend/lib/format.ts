@@ -42,3 +42,9 @@ export const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()
 const timeOnly = new Intl.DateTimeFormat("tr-TR", { timeStyle: "short", timeZone: "Europe/Istanbul" });
 
 export const formatTime = (iso: string) => timeOnly.format(new Date(iso));
+
+export function formatRound(round: string | null): string | null {
+  if (!round) return null;
+  const match = round.match(/^Regular Season\s*-\s*(\d+)$/i);
+  return match ? `${match[1]}. Hafta` : round;
+}

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Fixture } from "@/lib/types";
-import { formatDateTime, statusInfo } from "@/lib/format";
+import { formatDateTime, formatRound, statusInfo } from "@/lib/format";
 import { resolveSelection, seasonLabel } from "@/lib/season";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { NoData } from "@/components/no-data";
@@ -124,44 +124,56 @@ async function FixturesContent({
       {items.length === 0 ? (
         <p className="text-neutral-600">Bu filtrelere uyan maç bulunamadı.</p>
       ) : (
-        <ul className="divide-y rounded-lg border bg-white">
-          {items.map((f) => {
-            const info = statusInfo(f.status_short);
-            const hasScore = f.home_goals !== null && f.away_goals !== null;
-            return (
-              <li key={f.id} className="px-4 py-3">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
-                  <span>
-                    {formatDateTime(f.kickoff)}
-                    {f.round ? ` · ${f.round}` : ""}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={TONE[info.tone]}
-                    title={f.status_long ?? undefined}
-                  >
-                    {info.label}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm">
-                  <div className="flex justify-end">
-                    <TeamLink
-                      team={f.home}
-                      seasonId={season.id}
-                      align="right"
-                    />
+        <div className="overflow-hidden rounded-lg border bg-white">
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-3 border-b bg-blue-50 px-4 py-2 text-xs font-medium text-blue-900">
+            <span className="text-right">Ev sahibi</span>
+            <span className="min-w-16 text-center">Skor</span>
+            <span>Deplasman</span>
+          </div>
+          <ul className="divide-y">
+            {items.map((f) => {
+              const info = statusInfo(f.status_short);
+              const hasScore = f.home_goals !== null && f.away_goals !== null;
+              return (
+                <li key={f.id} className="px-4 py-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
+                    <span>
+                      {formatDateTime(f.kickoff)}
+                      {f.round ? ` · ${formatRound(f.round)}` : ""}
+                      {f.venue_name ? ` · ${f.venue_name}` : ""}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={TONE[info.tone]}
+                      title={f.status_long ?? undefined}
+                    >
+                      {info.label}
+                    </Badge>
                   </div>
-                  <div className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900">
-                    {hasScore ? `${f.home_goals} - ${f.away_goals}` : "–"}
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm">
+                    <div className="flex justify-end">
+                      <TeamLink
+                        team={f.home}
+                        seasonId={season.id}
+                        align="right"
+                      />
+                    </div>
+                    <div className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900">
+                      {hasScore ? `${f.home_goals} - ${f.away_goals}` : "–"}
+                    </div>
+                    <div>
+                      <TeamLink
+                        team={f.away}
+                        seasonId={season.id}
+                        align="left"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <TeamLink team={f.away} seasonId={season.id} align="left" />
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       <div className="flex items-center justify-between text-sm">
