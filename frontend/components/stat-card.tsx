@@ -23,9 +23,13 @@ export function StatCard({ label, value, tone = "blue", hint }: StatCardProps) {
   const { card, value: valueClass } = TONES[tone];
   return (
     <Card className={`border-t-4 ${card} shadow-sm`}>
-      <CardContent className="p-4">
+      <CardContent className="md:p-4">
         <p className="text-sm text-neutral-600">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+        <p
+          className={`mt-1 text-xl md:text-2xl font-semibold tabular-nums ${valueClass}`}
+        >
+          {value}
+        </p>
         {hint && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
       </CardContent>
     </Card>

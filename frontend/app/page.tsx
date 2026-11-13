@@ -58,7 +58,7 @@ async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
   ];
 
   return (
-    <div>
+    <div className="flex flex-col md:gap-4 gap-6 ">
       <DashboardHeader
         leagues={leagues}
         leagueId={league.id}
@@ -66,42 +66,43 @@ async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
         active="overview"
       />
 
-      <h1 className="text-2xl font-semibold  text-blue-900">
-        {league.name} {seasonLabel(season.year)}
-      </h1>
+      <div className="flex flex-col gap-4 md:gap-6">
+        <h1 className="text-2xl font-semibold  text-blue-900">
+          {league.name} {seasonLabel(season.year)}
+        </h1>
 
-      {failed && (
-        <Notice>
-          Son veri güncellemesi başarısız oldu. Gösterilen bilgiler
-          veritabanındaki son başarılı güncellemeye aittir.
-        </Notice>
-      )}
-      {stale && (
-        <Notice>
-          Bu sezonda tamamlanmamış maçlar var ve veriler 24 saatten uzun süredir
-          güncellenmedi. Sonuçlar eski olabilir.
-        </Notice>
-      )}
-      {overview.last_sync_at === null && (
-        <Notice>
-          Bu lig ve sezon için henüz başarılı bir senkronizasyon kaydı yok.
-        </Notice>
-      )}
+        {failed && (
+          <Notice>
+            Son veri güncellemesi başarısız oldu. Gösterilen bilgiler
+            veritabanındaki son başarılı güncellemeye aittir.
+          </Notice>
+        )}
+        {stale && (
+          <Notice>
+            Bu sezonda tamamlanmamış maçlar var ve veriler 24 saatten uzun
+            süredir güncellenmedi. Sonuçlar eski olabilir.
+          </Notice>
+        )}
+        {overview.last_sync_at === null && (
+          <Notice>
+            Bu lig ve sezon için henüz başarılı bir senkronizasyon kaydı yok.
+          </Notice>
+        )}
 
-      <StatCardSection
-        cards={statCardsData}
-        className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
-        title="Genel görünüm"
-      />
+        <StatCardSection
+          cards={statCardsData}
+          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+          title="Genel görünüm"
+        />
 
-      <div className="mt-4">
         <SyncButton leagueId={league.id} year={season.year} />
       </div>
-
-      <h2 className="mb-3 mt-8 border-l-4 border-green-600 pl-3 text-xl font-semibold text-blue-900">
-        Puan durumu
-      </h2>
-      <StandingsTable rows={rows} seasonId={season.id} />
+      <div className="flex flex-col gap-4 md:gap-6 ">
+        <h2 className=" border-l-4 border-green-600 pl-3 text-xl font-semibold text-blue-900">
+          Puan durumu
+        </h2>
+        <StandingsTable rows={rows} seasonId={season.id} />
+      </div>
     </div>
   );
 }

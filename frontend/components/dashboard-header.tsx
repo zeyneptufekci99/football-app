@@ -23,7 +23,7 @@ export function DashboardHeader({
     }`;
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <nav className="flex gap-1" aria-label="Sayfalar">
         <Link
           href={`/?season=${seasonId}`}

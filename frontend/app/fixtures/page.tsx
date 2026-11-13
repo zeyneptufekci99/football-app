@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Fixture } from "@/lib/types";
-import { STATUS_OPTIONS, formatDateTime, statusInfo } from "@/lib/format";
+import { formatDateTime, statusInfo } from "@/lib/format";
 import { resolveSelection, seasonLabel } from "@/lib/season";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { NoData } from "@/components/no-data";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { FixturesFilterForm } from "@/components/fixtures-filter-form";
+
+import { MdOutlineChevronLeft, MdOutlineChevronRight } from "react-icons/md";
 
 const PAGE_SIZE = 25;
 
@@ -90,10 +92,8 @@ export default async function FixturesPage({
     return `/fixtures?${q}`;
   };
 
-  const field = "h-9 rounded-md border bg-white px-2 text-sm";
-
   return (
-    <div>
+    <div className="flex flex-col md:gap-4 gap-6 ">
       <DashboardHeader
         leagues={leagues}
         leagueId={league.id}
@@ -101,78 +101,29 @@ export default async function FixturesPage({
         active="fixtures"
       />
 
-      <h1 className="text-2xl font-semibold">
-        Maçlar · {league.name} {seasonLabel(season.year)}
-      </h1>
+      <div className="flex flex-col gap-4 md:gap-6">
+        <h1 className="text-2xl font-semibold">
+          Maçlar · {league.name} {seasonLabel(season.year)}
+        </h1>
 
-      <form
-        method="get"
-        className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4"
-      >
-        <input type="hidden" name="season" value={season.id} />
-        <label className="flex flex-col gap-1 text-sm">
-          Takım
-          <select
-            name="team_id"
-            defaultValue={sp.team_id ?? ""}
-            className={`${field} w-48`}
-          >
-            <option value="">Tümü</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Durum
-          <select
-            name="status"
-            defaultValue={sp.status ?? ""}
-            className={`${field} w-40`}
-          >
-            <option value="">Tümü</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Başlangıç tarihi
-          <input
-            type="date"
-            name="date_from"
-            defaultValue={sp.date_from ?? ""}
-            className={field}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Bitiş tarihi
-          <input
-            type="date"
-            name="date_to"
-            defaultValue={sp.date_to ?? ""}
-            className={field}
-          />
-        </label>
-        <Button type="submit">Filtrele</Button>
-        <Link
-          href={`/fixtures?season=${season.id}`}
-          className="py-2 text-sm underline"
-        >
-          Temizle
-        </Link>
-      </form>
+        <FixturesFilterForm
+          key={season.id}
+          seasonId={season.id}
+          seasonYear={season.year}
+          teams={teams}
+          values={{
+            team_id: sp.team_id,
+            status: sp.status,
+            date_from: sp.date_from,
+            date_to: sp.date_to,
+          }}
+        />
+      </div>
 
       {items.length === 0 ? (
-        <p className="mt-6 text-neutral-600">
-          Bu filtrelere uyan maç bulunamadı.
-        </p>
+        <p className="text-neutral-600">Bu filtrelere uyan maç bulunamadı.</p>
       ) : (
-        <ul className="mt-6 divide-y rounded-lg border bg-white">
+        <ul className="divide-y rounded-lg border bg-white">
           {items.map((f) => {
             const info = statusInfo(f.status_short);
             const hasScore = f.home_goals !== null && f.away_goals !== null;
@@ -212,10 +163,12 @@ export default async function FixturesPage({
         </ul>
       )}
 
-      <div className="mt-4 flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-sm">
         {page > 1 ? (
           <Link href={pageHref(page - 1)} className="underline">
-            ← Önceki sayfa
+            <div className="flex p-2 rounded-md items-center border border-primary">
+              <MdOutlineChevronLeft color="oklch(0.488 0.2 264)" size={20} />
+            </div>
           </Link>
         ) : (
           <span />
@@ -223,7 +176,9 @@ export default async function FixturesPage({
         <span className="text-neutral-600">Sayfa {page}</span>
         {hasNext ? (
           <Link href={pageHref(page + 1)} className="underline">
-            Sonraki sayfa →
+            <div className="flex p-2 rounded-md items-center border border-primary">
+              <MdOutlineChevronRight color="oklch(0.488 0.2 264)" size={20} />
+            </div>
           </Link>
         ) : (
           <span />

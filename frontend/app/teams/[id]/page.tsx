@@ -102,23 +102,24 @@ export default async function TeamPage({
   ];
 
   return (
-    <div>
+    <div className="flex flex-col md:gap-4 gap-6 ">
       <DashboardHeader
         leagues={leagues}
         leagueId={league.id}
         seasonId={season.id}
         pickerBasePath="/"
       />
-
-      <h1 className="text-2xl font-semibold">{stats.team_name}</h1>
-      <p className="mt-1 text-sm text-neutral-600">
-        {league.name} {seasonLabel(season.year)}
-      </p>
-      <StatCardSection
-        cards={statCardsData}
-        className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
-        title="Sezon özeti"
-      />
+      <div>
+        <h1 className="text-2xl font-semibold">{stats.team_name}</h1>
+        <p className="mt-1 mb-4 text-sm text-neutral-600">
+          {league.name} {seasonLabel(season.year)}
+        </p>
+        <StatCardSection
+          cards={statCardsData}
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          title="Sezon özeti"
+        />
+      </div>
 
       <CardContainer contentClassName="space-y-4" header="Son 5 maç">
         <>

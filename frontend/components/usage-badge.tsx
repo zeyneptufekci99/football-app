@@ -31,7 +31,7 @@ export async function UsageBadge() {
         aria-valuemax={usage.daily_limit}
         aria-valuenow={usage.used_today}
         aria-label="Günlük API kullanımı"
-        className="h-1.5 w-20 overflow-hidden rounded bg-blue-900/50"
+        className="h-1.5 w-14  md:w-20 overflow-hidden rounded bg-blue-900/50"
       >
         <div
           className={`h-full ${high ? "bg-red-400" : "bg-green-400"}`}
