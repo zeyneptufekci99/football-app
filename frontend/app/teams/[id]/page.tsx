@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import type { SplitStats, TeamStats } from "@/lib/types";
@@ -34,7 +35,7 @@ function totalAsSplit(s: TeamStats): SplitStats {
 
 const RESULT_LABEL = { W: "G", D: "B", L: "M" } as const;
 
-export default async function TeamPage({
+async function TeamContent({
   params,
   searchParams,
 }: {
@@ -177,11 +178,11 @@ export default async function TeamPage({
           <TableHeader>
             <TableRow>
               <TableHead />
-              <TableHead className="text-right tabular-num">İç saha</TableHead>
-              <TableHead className="text-right tabular-num">
+              <TableHead className="text-right tabular-nums">İç saha</TableHead>
+              <TableHead className="text-right tabular-nums">
                 Deplasman
               </TableHead>
-              <TableHead className="text-right tabular-num">Toplam</TableHead>
+              <TableHead className="text-right tabular-nums">Toplam</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -189,7 +190,7 @@ export default async function TeamPage({
               <TableRow key={r.label}>
                 <TableCell>{r.label}</TableCell>
                 {columns.map((c, i) => (
-                  <TableCell key={i} className="text-right tabular-num">
+                  <TableCell key={i} className="text-right tabular-nums">
                     {r.pick(c)}
                   </TableCell>
                 ))}
@@ -203,5 +204,18 @@ export default async function TeamPage({
         <PointsChart data={stats.points_progress} />
       </CardContainer>
     </div>
+  );
+}
+
+export default function TeamPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ season?: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={<p className="text-sm text-neutral-600">Yükleniyor…</p>}
+    >
+      <TeamContent {...props} />
+    </Suspense>
   );
 }

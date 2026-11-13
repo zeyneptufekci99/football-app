@@ -6,10 +6,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       retries: 5
+
   backend:
     build: ./backend
     env_file: .env
@@ -21,6 +23,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/code
+
   scheduler:
     build: ./backend
     env_file: .env
@@ -29,5 +32,15 @@ services:
         condition: service_healthy
     command: python -m app.scheduler
     restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_URL: http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
 volumes:
   pgdata:
