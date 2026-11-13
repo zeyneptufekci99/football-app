@@ -12,7 +12,7 @@ export function CardContainer({
   contentClassName,
 }: CardContainerProps) {
   return (
-    <Card className="mt-6 bg-white">
+    <Card className="mt-6 border-t-blue-400 bg-blue-50 shadow-sm border-t-4">
       {header && (
         <CardHeader>
           <CardTitle className="text-lg">Son 5 maç</CardTitle>

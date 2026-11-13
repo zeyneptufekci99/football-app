@@ -80,20 +80,24 @@ export default async function TeamPage({
       label: "Puan",
       value: String(stats.points),
       hint: `${stats.played} maç`,
+      tone: "blue",
     },
     {
       label: "Galibiyet oranı",
       value: formatPercent(stats.win_rate),
+      tone: "green",
     },
     {
       label: "Maç başına atılan gol",
       value: formatNumber(stats.goals_for_per_match),
       hint: `Toplam ${stats.goals_for}`,
+      tone: "sky",
     },
     {
       label: "Maç başına yenilen gol",
       value: formatNumber(stats.goals_against_per_match),
       hint: `Toplam ${stats.goals_against}`,
+      tone: "teal",
     },
   ];
 

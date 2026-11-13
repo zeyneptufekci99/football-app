@@ -15,50 +15,60 @@ type StandingsTableProps = {
 };
 export function StandingsTable({ rows, seasonId }: StandingsTableProps) {
   const num = "text-right tabular-nums";
+  const head = "font-semibold text-blue-900";
   return (
     <div className="rounded-lg border bg-white">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">#</TableHead>
-            <TableHead>Takım</TableHead>
-            <TableHead className={num} title="Oynanan">
+        <TableHeader className="bg-blue-100">
+          <TableRow className="hover:bg-blue-100">
+            <TableHead className={`w-10 ${head}`}>#</TableHead>
+            <TableHead className={head}>Takım</TableHead>
+            <TableHead className={`${num} ${head}`} title="Oynanan">
               O
             </TableHead>
-            <TableHead className={num} title="Galibiyet">
+            <TableHead className={`${num} ${head}`} title="Galibiyet">
               G
             </TableHead>
-            <TableHead className={num} title="Beraberlik">
+            <TableHead className={`${num} ${head}`} title="Beraberlik">
               B
             </TableHead>
-            <TableHead className={num} title="Mağlubiyet">
+            <TableHead className={`${num} ${head}`} title="Mağlubiyet">
               M
             </TableHead>
             <TableHead
-              className={`${num} hidden sm:table-cell`}
+              className={`${num} ${head} hidden sm:table-cell`}
               title="Atılan gol"
             >
               AG
             </TableHead>
             <TableHead
-              className={`${num} hidden sm:table-cell`}
+              className={`${num} ${head}  hidden sm:table-cell`}
               title="Yenilen gol"
             >
               YG
             </TableHead>
-            <TableHead className={num} title="Averaj">
+            <TableHead className={`${num} ${head}`} title="Averaj">
               Av
             </TableHead>
-            <TableHead className={num} title="Puan">
+            <TableHead className={`${num} ${head}`} title="Puan">
               P
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((r) => (
-            <TableRow key={r.team_id}>
+            <TableRow
+              key={r.team_id}
+              className={
+                r.rank === 1
+                  ? "bg-green-50 hover:bg-green-100"
+                  : "even:bg-blue-50/40 hover:bg-blue-50"
+              }
+            >
               <TableCell className="font-medium tabular-nums">
-                {r.rank}
+                <span className={r.rank === 1 ? "text-green-700" : ""}>
+                  {r.rank}
+                </span>
               </TableCell>
               <TableCell>
                 <Link
@@ -72,16 +82,16 @@ export function StandingsTable({ rows, seasonId }: StandingsTableProps) {
                       alt=""
                       width={22}
                       height={22}
-                      className="h-[22px] w-[22px] object-contain"
+                      className="h-5.5 w-5.5 object-contain"
                     />
                   )}
                   {r.team_name}
                 </Link>
               </TableCell>
               <TableCell className={num}>{r.played}</TableCell>
-              <TableCell className={num}>{r.won}</TableCell>
+              <TableCell className={`${num} text-green-700`}>{r.won}</TableCell>
               <TableCell className={num}>{r.drawn}</TableCell>
-              <TableCell className={num}>{r.lost}</TableCell>
+              <TableCell className={`${num} text-red-700`}>{r.lost}</TableCell>
               <TableCell className={`${num} hidden sm:table-cell`}>
                 {r.goals_for}
               </TableCell>
@@ -91,7 +101,7 @@ export function StandingsTable({ rows, seasonId }: StandingsTableProps) {
               <TableCell className={num}>
                 {r.goal_diff > 0 ? `+${r.goal_diff}` : r.goal_diff}
               </TableCell>
-              <TableCell className={`${num} font-semibold`}>
+              <TableCell className={`${num} font-semibold text-blue-700`}>
                 {r.points}
               </TableCell>
             </TableRow>

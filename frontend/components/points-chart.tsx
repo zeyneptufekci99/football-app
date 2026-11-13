@@ -57,7 +57,7 @@ export function PointsChart({ data }: { data: PointsPoint[] }) {
           <Line
             type="monotone"
             dataKey="cumulative_points"
-            stroke="#166534"
+            stroke="#1d4ed8"
             strokeWidth={2}
             dot={false}
           />

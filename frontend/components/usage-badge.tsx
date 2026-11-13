@@ -5,9 +5,7 @@ export async function UsageBadge() {
   const usage = await api.usage().catch(() => null);
   if (!usage)
     return (
-      <span className="text-xs text-neutral-500">
-        API kullanımı: bilinmiyor
-      </span>
+      <span className="text-xs text-blue-100">API kullanımı: bilinmiyor</span>
     );
 
   const ratio = Math.min(usage.used_today / usage.daily_limit, 1);
@@ -22,23 +20,26 @@ export async function UsageBadge() {
       : "");
 
   return (
-    <div className="flex items-center gap-2 text-xs" title={title}>
-      <span className="text-neutral-600">API istekleri</span>
+    <div
+      className="flex items-center gap-2 text-xs text-blue-100"
+      title={title}
+    >
+      <span>API istekleri</span>
       <div
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={usage.daily_limit}
         aria-valuenow={usage.used_today}
         aria-label="Günlük API kullanımı"
-        className="h-1.5 w-20 overflow-hidden rounded bg-neutral-200"
+        className="h-1.5 w-20 overflow-hidden rounded bg-blue-900/50"
       >
         <div
-          className={`h-full ${high ? "bg-red-600" : "bg-green-700"}`}
+          className={`h-full ${high ? "bg-red-400" : "bg-green-400"}`}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>
       <span
-        className={`tabular-nums ${high ? "font-medium text-red-700" : ""}`}
+        className={`tabular-nums ${high ? "font-medium text-red-200" : "text-white"}`}
       >
         {usage.used_today} / {usage.daily_limit}
       </span>

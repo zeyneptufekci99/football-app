@@ -19,7 +19,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const tab = (isActive: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium ${
-      isActive ? "bg-neutral-900 text-white" : "hover:bg-neutral-200"
+      isActive ? "bg-primary text-primary-foreground" : "hover:bg-blue-100"
     }`;
 
   return (

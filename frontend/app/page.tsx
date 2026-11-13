@@ -35,21 +35,25 @@ async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
       label: "Oynanan maç",
       value: String(overview.played),
       hint: `Toplam ${overview.total_fixtures} maç`,
+      tone: "blue",
     },
     {
       label: "Tamamlanmamış maç",
       value: String(overview.unfinished),
+      tone: "green",
     },
     {
       label: "Toplam gol",
       value: String(overview.total_goals),
       hint: `Maç başına ${formatNumber(overview.goals_per_match)}`,
+      tone: "sky",
     },
     {
       label: "Son veri güncellemesi",
       value: overview.last_sync_at
         ? formatDateTime(overview.last_sync_at)
         : "Henüz yok",
+      tone: "teal",
     },
   ];
 
@@ -62,7 +66,7 @@ async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
         active="overview"
       />
 
-      <h1 className="text-2xl font-semibold">
+      <h1 className="text-2xl font-semibold  text-blue-900">
         {league.name} {seasonLabel(season.year)}
       </h1>
 
@@ -94,7 +98,9 @@ async function HomeContent({ searchParams }: { searchParams: SearchParams }) {
         <SyncButton leagueId={league.id} year={season.year} />
       </div>
 
-      <h2 className="mb-3 mt-8 text-xl font-semibold">Puan durumu</h2>
+      <h2 className="mb-3 mt-8 border-l-4 border-green-600 pl-3 text-xl font-semibold text-blue-900">
+        Puan durumu
+      </h2>
       <StandingsTable rows={rows} seasonId={season.id} />
     </div>
   );

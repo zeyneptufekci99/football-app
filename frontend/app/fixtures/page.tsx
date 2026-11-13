@@ -107,7 +107,7 @@ export default async function FixturesPage({
 
       <form
         method="get"
-        className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4"
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4"
       >
         <input type="hidden" name="season" value={season.id} />
         <label className="flex flex-col gap-1 text-sm">
@@ -199,7 +199,7 @@ export default async function FixturesPage({
                       align="right"
                     />
                   </div>
-                  <div className="min-w-16 text-center text-lg font-semibold tabular-nums">
+                  <div className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900">
                     {hasScore ? `${f.home_goals} - ${f.away_goals}` : "–"}
                   </div>
                   <div>
