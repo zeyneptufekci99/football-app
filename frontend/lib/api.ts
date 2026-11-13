@@ -2,6 +2,8 @@ import type {
   Fixture,
   FixtureFilters,
   League,
+  MatchStats,
+  MatchStatsResult,
   Overview,
   StandingRow,
   SyncRun,
@@ -50,4 +52,17 @@ export const api = {
       throw e;
     }
   },
+    fixture: (id: number | string) => get<Fixture>(`/fixtures/${id}`),
+  // 502/503 (API erişilemiyor ya da günlük bütçe doldu) hata sayılmaz, sayfa bunu mesajla gösterir
+  matchStats: async (id: number | string): Promise<MatchStatsResult> => {
+    try {
+      return { ok: true, data: await get<MatchStats>(`/fixtures/${id}/statistics`) };
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 502 || e.status === 503)) {
+        return { ok: false, status: e.status };
+      }
+      throw e;
+    }
+  },
 };
+

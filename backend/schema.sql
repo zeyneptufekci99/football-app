@@ -100,3 +100,16 @@ CREATE INDEX IF NOT EXISTS idx_api_requests_time ON api_requests (requested_at);
 ALTER TABLE sync_runs
     ADD COLUMN IF NOT EXISTS mode VARCHAR(10) NOT NULL DEFAULT 'full',
     ADD COLUMN IF NOT EXISTS api_calls INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS fixture_stats_fetches (
+    fixture_id  INTEGER PRIMARY KEY REFERENCES fixtures(id),
+    fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    has_data    BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fixture_team_stats (
+    fixture_id  INTEGER NOT NULL REFERENCES fixtures(id),
+    team_id     INTEGER NOT NULL REFERENCES teams(id),
+    stats       JSONB NOT NULL,
+    PRIMARY KEY (fixture_id, team_id)
+);

@@ -153,3 +153,18 @@ class OverviewOut(BaseModel):
     goals_per_match: float | None
     last_sync_at: datetime | None
     last_sync_status: str | None
+
+
+class MatchStatsTeam(BaseModel):
+    team_id: int
+    name: str
+    stats: dict[str, int | float | None]
+
+
+class MatchStatsOut(BaseModel):
+    fixture_id: int
+    available: bool
+    reason: str | None  # not_finished | no_data
+    fetched_at: datetime | None
+    home: MatchStatsTeam | None
+    away: MatchStatsTeam | None

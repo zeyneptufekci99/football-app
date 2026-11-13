@@ -12,11 +12,12 @@ from .usage import get_usage
 from .db import get_connection
 from .schemas import (
     FixtureOut, LeagueOut, OverviewOut, RecentMatch, StandingRow, SyncRequest, SyncRunOut,
-    TeamOut, TeamStats, UsageOut,
+    TeamOut, TeamStats, UsageOut,MatchStatsOut
 )
 from .sync import SyncAlreadyRunning, SyncTooRecent, preflight, sync_league_season
 from .sync import sync_league_season
-
+from .api_client import ApiFootballError, DailyBudgetExceeded
+from .match_stats import FixtureNotFound, get_match_stats
 log = logging.getLogger("football")
 FINISHED = ["FT", "AET", "PEN"]
 
@@ -351,3 +352,40 @@ def sync_status(league_id: int | None = None, season: int | None = None, conn=De
 def api_usage(conn=Depends(get_db)):
     """Bugünkü API-Football kullanımı (kendi kayıtlarımızdan)."""
     return get_usage(conn)
+
+
+@app.get("/fixtures/{fixture_id}/statistics", response_model=MatchStatsOut)
+def match_statistics(fixture_id: int, conn=Depends(get_db)):
+    """Maç istatistikleri: ilk istekte API'den çekilip saklanır, sonrasında veritabanından gelir."""
+    try:
+        return get_match_stats(conn, fixture_id)
+    except FixtureNotFound:
+        raise HTTPException(404, f"Fixture {fixture_id} not found")
+    except DailyBudgetExceeded:
+        raise HTTPException(503, "Daily API request budget reached; statistics for this match are not stored yet")
+    except ApiFootballError:
+        log.exception("Could not fetch statistics for fixture %s", fixture_id)
+        raise HTTPException(502, "Could not fetch statistics from API-Football")
+
+@app.get("/fixtures/{fixture_id}", response_model=FixtureOut)
+def get_fixture(fixture_id: int, conn=Depends(get_db)):
+    r = conn.execute(
+        """
+        SELECT f.id, f.round, f.kickoff, f.status_short, f.status_long, f.home_goals, f.away_goals,
+               f.venue_name, h.id AS home_id, h.name AS home_name, h.logo AS home_logo,
+               a.id AS away_id, a.name AS away_name, a.logo AS away_logo
+        FROM fixtures f
+        JOIN teams h ON h.id = f.home_team_id
+        JOIN teams a ON a.id = f.away_team_id
+        WHERE f.id = %s
+        """,
+        (fixture_id,),
+    ).fetchone()
+    if not r:
+        raise HTTPException(404, f"Fixture {fixture_id} not found")
+    return {
+        **{k: r[k] for k in ("id", "round", "kickoff", "status_short", "status_long",
+                             "home_goals", "away_goals", "venue_name")},
+        "home": {"id": r["home_id"], "name": r["home_name"], "logo": r["home_logo"]},
+        "away": {"id": r["away_id"], "name": r["away_name"], "logo": r["away_logo"]},
+    }

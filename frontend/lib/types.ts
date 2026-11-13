@@ -139,3 +139,20 @@ export type Usage = {
   last_request_at: string | null;
   resets_at: string | null;
 };
+
+export type MatchStatsTeam = {
+  team_id: number;
+  name: string;
+  stats: Record<string, number | null>;
+};
+
+export type MatchStats = {
+  fixture_id: number;
+  available: boolean;
+  reason: "not_finished" | "no_data" | null;
+  fetched_at: string | null;
+  home: MatchStatsTeam | null;
+  away: MatchStatsTeam | null;
+};
+
+export type MatchStatsResult = { ok: true; data: MatchStats } | { ok: false; status: 502 | 503 };

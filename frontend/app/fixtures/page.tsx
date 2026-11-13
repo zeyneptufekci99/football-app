@@ -134,6 +134,9 @@ async function FixturesContent({
             {items.map((f) => {
               const info = statusInfo(f.status_short);
               const hasScore = f.home_goals !== null && f.away_goals !== null;
+              const score = hasScore
+                ? `${f.home_goals} - ${f.away_goals}`
+                : "–";
               return (
                 <li key={f.id} className="px-4 py-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
@@ -158,9 +161,19 @@ async function FixturesContent({
                         align="right"
                       />
                     </div>
-                    <div className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900">
-                      {hasScore ? `${f.home_goals} - ${f.away_goals}` : "–"}
-                    </div>
+                    {info.tone === "done" ? (
+                      <Link
+                        href={`/fixtures/${f.id}?season=${season.id}`}
+                        aria-label="Maç istatistiklerini göster"
+                        className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900 hover:bg-blue-200"
+                      >
+                        {score}
+                      </Link>
+                    ) : (
+                      <div className="min-w-16 rounded-md bg-blue-100 px-2 py-1 text-center text-lg font-semibold tabular-nums text-blue-900">
+                        {score}
+                      </div>
+                    )}
                     <div>
                       <TeamLink
                         team={f.away}
