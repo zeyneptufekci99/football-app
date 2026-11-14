@@ -3,13 +3,6 @@
 import { usePathname, useRouter } from "next/navigation";
 import type { League } from "@/lib/types";
 import { seasonLabel } from "@/lib/season";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Dropdown } from "./dropdown";
 
 type SeasonPickerProps = {
