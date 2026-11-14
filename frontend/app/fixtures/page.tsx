@@ -108,7 +108,7 @@ async function FixturesContent({
         </h1>
 
         <FixturesFilterForm
-          key={season.id}
+          key={`${season.id}|${sp.team_id ?? ""}|${sp.status ?? ""}|${sp.date_from ?? ""}|${sp.date_to ?? ""}`}
           seasonId={season.id}
           seasonYear={season.year}
           teams={teams}

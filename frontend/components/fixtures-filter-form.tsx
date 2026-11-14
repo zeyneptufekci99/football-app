@@ -81,6 +81,7 @@ export function FixturesFilterForm({
       <label className="flex flex-col gap-1 text-sm">
         Başlangıç tarihi
         <input
+          placeholder="GG.AA.YYYY"
           type="date"
           name="date_from"
           value={from}
@@ -94,6 +95,7 @@ export function FixturesFilterForm({
       <label className="flex flex-col gap-1 text-sm">
         Bitiş tarihi
         <input
+          placeholder="GG.AA.YYYY"
           type="date"
           name="date_to"
           value={to}
