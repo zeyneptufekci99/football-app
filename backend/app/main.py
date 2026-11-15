@@ -389,3 +389,8 @@ def get_fixture(fixture_id: int, conn=Depends(get_db)):
         "home": {"id": r["home_id"], "name": r["home_name"], "logo": r["home_logo"]},
         "away": {"id": r["away_id"], "name": r["away_name"], "logo": r["away_logo"]},
     }
+
+@app.get("/health")
+def health():
+    """Veritabanına dokunmayan hafif kontrol: barındırma hizmeti ve uyandırma pingi için."""
+    return {"status": "ok"}
