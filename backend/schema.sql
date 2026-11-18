@@ -113,3 +113,5 @@ CREATE TABLE IF NOT EXISTS fixture_team_stats (
     stats       JSONB NOT NULL,
     PRIMARY KEY (fixture_id, team_id)
 );
+
+ALTER TABLE api_requests ADD COLUMN IF NOT EXISTS state VARCHAR(10) NOT NULL DEFAULT 'completed';

@@ -13,6 +13,6 @@ class Settings(BaseSettings):
     min_sync_interval_minutes: int = 15 
     full_sync_every_days: int = 7
     app_timezone: str = "Europe/Istanbul" 
-
+    admin_token: str = ""
 
 settings = Settings()
