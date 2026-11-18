@@ -10,9 +10,9 @@ def get_usage(conn) -> dict:
         WITH d AS (SELECT date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS start)
         SELECT
           (SELECT count(*) FROM api_requests, d
-            WHERE http_status IS NOT NULL AND requested_at >= d.start) AS used_today,
+            WHERE state IN ('reserved', 'completed') AND requested_at >= d.start) AS used_today,
           (SELECT count(*) FROM api_requests, d
-            WHERE http_status IS NOT NULL AND NOT ok AND requested_at >= d.start) AS failed_today,
+            WHERE state = 'completed' NOT ok AND requested_at >= d.start) AS failed_today,
           (SELECT api_remaining FROM api_requests, d
             WHERE api_remaining IS NOT NULL AND requested_at >= d.start
             ORDER BY id DESC LIMIT 1) AS api_reported_remaining,

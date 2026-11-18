@@ -46,8 +46,10 @@ API-Football ──► sync (Python) ──► PostgreSQL ──► FastAPI ─�
 
 Ayrıntılı belgeler:
 
-- [Veritabanı şeması](docs/database-schema.md): ilişki diyagramı ve tablo açıklamaları
-- [API kullanımı ve veri güncelleme stratejisi](docs/api-usage-strategy.md)
+- Database Şeması(mail üzerinden): ilişki diyagramı ve tablo açıklamaları
+- API kullanımı ve veri güncelleme stratejisi(mail üzerinden)
+- [Kota koruması ve eşzamanlılık](docs/quota-and-concurrency.md): eşzamanlı isteklerde kota, hata durumlarında kayıt, `force` yetkisi
+- [Canlı veri değerlendirmesi](docs/live-data-assessment.md): riskler, 100 istekle canlı takip planı, skor düzeltmeleri
 
 ## Kurulum
 
@@ -120,15 +122,20 @@ Get-Content backend/schema.sql | docker compose exec -T db psql -U football -d f
 
 ## Testler
 
-Backend için 29 birim testi vardır. Testler veritabanına ya da API'ye ihtiyaç duymaz:
+Backend için 48 test vardır. Hiçbiri gerçek API-Football'a istek atmaz. 39'u veritabanı gerektirmez. Kota testleri (9) gerçek bir PostgreSQL ister ve `TEST_DATABASE_URL` ayarlı değilse atlanır.
 
 ```bash
-docker compose run --rm backend sh -c "pip install -q -r requirements-dev.txt && python -m pytest -v"
+docker compose run --rm -e TEST_DATABASE_URL=postgresql://football:football@db:5432/football_test backend sh -c "pip install -q -r requirements-dev.txt && python -m pytest -v"
 ```
+
+`TEST_DATABASE_URL`, adı `test` ile biten ayrı bir veritabanına işaret etmelidir. Testler başka adlı bir veritabanında çalışmayı reddeder. Veritabanı yoksa testler onu kendisi oluşturur.
 
 Test edilenler:
 
 - **Takım performans hesaplamaları** (`app/stats.py`): galibiyet oranı, gol ortalamaları, son 5 maç formu (sıralama dahil), iç saha/deplasman ayrımı ve birikmiş puan. Beklenen değerler elle hesaplanmış örnek maçlara dayanır.
+- **Takım istatistikleri uç noktası**: yanıtın ortak `compute_team_stats` fonksiyonuyla ve elle hesaplanmış değerlerle (3G 2B 2M, 11 puan, form `LLDWW`) örtüştüğü.
+- **Kota koruması** (`app/quota.py`): 99. istekte eşzamanlı işlemlerin kotayı aşmaması, bağlantı hatasında kotanın düşmemesi, okuma zaman aşımında düşmesi.
+- **`force` yetkisi**: `X-Admin-Token` olmadan `force` isteğinin reddedilmesi.
 - **API verisinin temizlenmesi** (`normalize_fixture`): eksik zorunlu alanlı maçların atlanması, oynanmamış maçın boş skorunun korunması.
 - **İstatistik değerlerinin sayıya çevrilmesi** (`parse_value`): `"40%"` → 40, `"0.36"` → 0.36, boş ve geçersiz değerler.
 
@@ -147,26 +154,28 @@ GitHub Actions her push'ta backend testlerini ve frontend kontrollerini (tip den
 
 Swagger arayüzü: `http://localhost:8000/docs`
 
-| Uç nokta                                  | Açıklama                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `GET /leagues`                            | Ligler ve sezonları                                                                        |
-| `GET /seasons/{id}/overview`              | Oynanan ve tamamlanmamış maç sayısı, toplam gol, son senkronizasyon                        |
-| `GET /seasons/{id}/teams`                 | Takım listesi                                                                              |
-| `GET /seasons/{id}/fixtures`              | Maçlar. Filtreler: `team_id`, `status`, `date_from`, `date_to`, `limit`, `offset`          |
-| `GET /seasons/{id}/standings`             | Puan tablosu (maç sonuçlarından hesaplanır)                                                |
-| `GET /seasons/{id}/teams/{team_id}/stats` | Son 5 maç formu, galibiyet oranı, gol ortalamaları, iç saha/deplasman, puan grafiği verisi |
-| `GET /fixtures/{id}`                      | Tek maç                                                                                    |
-| `GET /fixtures/{id}/statistics`           | Maç istatistikleri (ilk istekte API'den çekilir, sonra veritabanından gelir)               |
-| `POST /sync`                              | Bir lig ve sezonu arka planda güncelle (`{"league_id":203,"season":2024}`)                 |
-| `GET /sync/status`                        | Son senkronizasyon durumu                                                                  |
-| `GET /usage`                              | Günlük API kullanımı                                                                       |
-| `GET /health`                             | Sağlık kontrolü (veritabanına dokunmaz)                                                    |
+| Uç nokta                                  | Açıklama                                                                                                                                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /leagues`                            | Ligler ve sezonları                                                                                                                                                                  |
+| `GET /seasons/{id}/overview`              | Oynanan ve tamamlanmamış maç sayısı, toplam gol, son senkronizasyon                                                                                                                  |
+| `GET /seasons/{id}/teams`                 | Takım listesi                                                                                                                                                                        |
+| `GET /seasons/{id}/fixtures`              | Maçlar. Filtreler: `team_id`, `status`, `date_from`, `date_to`, `limit`, `offset`                                                                                                    |
+| `GET /seasons/{id}/standings`             | Puan tablosu (maç sonuçlarından hesaplanır)                                                                                                                                          |
+| `GET /seasons/{id}/teams/{team_id}/stats` | Son 5 maç formu, galibiyet oranı, gol ortalamaları, iç saha/deplasman, puan grafiği verisi                                                                                           |
+| `GET /fixtures/{id}`                      | Tek maç                                                                                                                                                                              |
+| `GET /fixtures/{id}/statistics`           | Maç istatistikleri (ilk istekte API'den çekilir, sonra veritabanından gelir)                                                                                                         |
+| `POST /sync`                              | Bir lig ve sezonu arka planda güncelle (`{"league_id":203,"season":2024}`). `force: true` soğuma süresini atlar ve yalnızca `X-Admin-Token` başlığı ile kabul edilir (aşağıya bakın) |
+| `GET /sync/status`                        | Son senkronizasyon durumu                                                                                                                                                            |
+| `GET /usage`                              | Günlük API kullanımı                                                                                                                                                                 |
+| `GET /health`                             | Sağlık kontrolü (veritabanına dokunmaz)                                                                                                                                              |
+
+`force` yönetici anahtarı: `.env` içinde `ADMIN_TOKEN` tanımlıdır ve istek `X-Admin-Token: <değer>` başlığını taşırsa `force` kabul edilir. Aksi halde HTTP 403 döner. `ADMIN_TOKEN` boşsa `force` HTTP üzerinden tamamen kapalıdır. Normal güncelleme (`force` olmadan) anahtar istemez. Komut satırındaki `--force` bundan etkilenmez.
 
 Puan tablosu sıralaması: puan, averaj, atılan gol, takım adı. Takım istatistikleri yalnızca tamamlanmış maçlardan (`FT`, `AET`, `PEN`) hesaplanır. Tarih filtreleri İstanbul saatine göre yorumlanır (`APP_TIMEZONE` ile değiştirilebilir).
 
 ## Veri güncelleme ve API limit stratejisi
 
-Ayrıntılar [`docs/api-usage-strategy.md`](docs/api-usage-strategy.md) belgesindedir. Özet:
+Ayrıntılar API kullanımı ve veri güncelleme stratejisi belgesindedir. Özet:
 
 | Veri                           | Ne zaman güncellenir                                          | API isteği              |
 | ------------------------------ | ------------------------------------------------------------- | ----------------------- |
@@ -214,10 +223,11 @@ Notlar:
 
 ## Bilinen sınırlamalar
 
-- `POST /sync` kimlik doğrulaması istemez. Kota koruması yalnızca soğuma süresi ve günlük bütçe ile sağlanır. Herkese açık bir ortamda yetkilendirme eklenmelidir.
+- `POST /sync` normal kullanımda kimlik doğrulaması istemez. Yalnızca `force` yönetici anahtarı ister. Kota; soğuma süresi, günlük bütçe ve veritabanı kilidi ile korunur ([ayrıntılar](docs/quota-and-concurrency.md)). Kullanıcı hesabı sistemi yoktur ve IP başına hız sınırı yoktur.
+- Kota, ortak veritabanı üzerinden sayılır. Aynı API anahtarını farklı veritabanlarıyla kullanan iki ortam (yerel Docker ve canlı) birbirinin kullanımını görmez.
 - Maç istatistikleri uç noktası, veritabanında olmayan her maç için bir kez API'ye gidebilir. Günlük bütçe sınırı bu uç noktayı da kapsar, ancak çok sayıda farklı maç numarası denenirse kota tüketilebilir.
 - Puan sıralaması, eşit puanda ikili averaj kuralını uygulamaz. Bazı sezonlarda resmi tablodan farklı sıra çıkabilir. Puanlar ve averajlar doğrudur.
-- Zamanlayıcının kuralları sabittir, ligin takvimine göre uyum sağlamaz. Ertelenmiş (`PST`) bir maçı olan sezon günde bir güncellenmeye devam eder.
+- Zamanlayıcının kuralları sabittir, ligin takvimine göre uyum sağlamaz. Ertelenmiş (`PST`) bir maçı olan sezon, planlanan saatinden sonraki ilk 3 gün saatte bir, sonra günde bir güncellenmeye devam eder.
 - Frontend için otomatik test yoktur, yalnızca tip denetimi, lint ve build CI'da çalışır.
 - Ücretsiz barındırma nedeniyle canlı sürümde ilk açılış yavaştır.
 
@@ -233,13 +243,14 @@ backend/
     api_client.py     API-Football istemcisi (hız sınırı, yeniden deneme, kullanım kaydı)
     match_stats.py    Maç istatistiklerini çekme ve saklama
     usage.py          Günlük kullanım hesabı
+    quota.py          Kota rezervasyonu (kilit altında, eşzamanlı güvenli)
   tests/              pytest testleri
   schema.sql          Veritabanı şeması
 frontend/
   app/                Sayfalar (genel görünüm, maçlar, maç detayı, takım)
   components/         Arayüz bileşenleri
   lib/                API istemcisi, tipler, biçimlendirme
-docs/                 Şema ve strateji belgeleri
+docs/                 Şema, strateji, kota ve canlı veri belgeleri
 docker-compose.yml
 .env.example
 ```

@@ -1,24 +1,26 @@
 import logging
 from datetime import date
 from typing import Iterator
-
+import secrets
 import psycopg
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 from .config import settings 
 from .usage import get_usage
 from .db import get_connection
 from .schemas import (
-    FixtureOut, LeagueOut, OverviewOut, RecentMatch, StandingRow, SyncRequest, SyncRunOut,
+    FixtureOut, LeagueOut, OverviewOut, StandingRow, SyncRequest, SyncRunOut,
     TeamOut, TeamStats, UsageOut,MatchStatsOut
 )
 from .sync import SyncAlreadyRunning, SyncTooRecent, preflight, sync_league_season
-from .sync import sync_league_season
 from .api_client import ApiFootballError, DailyBudgetExceeded
 from .match_stats import FixtureNotFound, get_match_stats
+from .stats import compute_team_stats, ratio
+
 log = logging.getLogger("football")
+
 FINISHED = ["FT", "AET", "PEN"]
 
 app = FastAPI(title="Football API")
@@ -43,9 +45,6 @@ def require_season(conn: psycopg.Connection, season_id: int) -> None:
     if not conn.execute("SELECT 1 FROM seasons WHERE id = %s", (season_id,)).fetchone():
         raise HTTPException(404, f"Season {season_id} not found")
 
-
-def ratio(num: float, den: int) -> float | None:
-    return round(num / den, 3) if den else None
 
 
 @app.get("/leagues", response_model=list[LeagueOut])
@@ -251,63 +250,11 @@ def team_stats(season_id: int, team_id: int, conn=Depends(get_db)):
         ORDER BY f.kickoff DESC
         """,
         {"s": season_id, "t": team_id, "fin": FINISHED},
-    ).fetchall()  # en yeni maç ilk sırada
-
-    matches = []
-    for r in rows:
-        result = "W" if r["gf"] > r["ga"] else "D" if r["gf"] == r["ga"] else "L"
-        matches.append({
-            "fixture_id": r["fixture_id"], "kickoff": r["kickoff"], "opponent": r["opponent"],
-            "is_home": r["is_home"], "goals_for": r["gf"], "goals_against": r["ga"], "result": result,
-        })
-
-    def summarize(ms: list[dict]) -> dict:
-        n = len(ms)
-        won = sum(m["result"] == "W" for m in ms)
-        drawn = sum(m["result"] == "D" for m in ms)
-        gf = sum(m["goals_for"] for m in ms)
-        ga = sum(m["goals_against"] for m in ms)
-        return {"n": n, "won": won, "drawn": drawn, "lost": n - won - drawn, "gf": gf, "ga": ga}
-
-    def split(ms: list[dict]) -> dict:
-        t = summarize(ms)
-        return {
-            "played": t["n"], "won": t["won"], "drawn": t["drawn"], "lost": t["lost"],
-            "points": t["won"] * 3 + t["drawn"],
-            "win_rate": ratio(t["won"], t["n"]),
-            "goals_for_per_match": ratio(t["gf"], t["n"]),
-            "goals_against_per_match": ratio(t["ga"], t["n"]),
-        }
-
-    total = summarize(matches)
-    last5_matches = matches[:5]
-    last5 = summarize(last5_matches)
-
-    # Grafik için maç maç birikmiş puan (eskiden yeniye)
-    cumulative, progress = 0, []
-    for i, m in enumerate(reversed(matches), start=1):
-        cumulative += {"W": 3, "D": 1, "L": 0}[m["result"]]
-        progress.append({
-            "match_no": i, "kickoff": m["kickoff"], "opponent": m["opponent"],
-            "cumulative_points": cumulative,
-        })
+    ).fetchall()  
 
     return {
         "team_id": team_id, "team_name": team["name"], "season_id": season_id,
-        "played": total["n"], "won": total["won"], "drawn": total["drawn"], "lost": total["lost"],
-        "points": total["won"] * 3 + total["drawn"],
-        "win_rate": ratio(total["won"], total["n"]),
-        "goals_for": total["gf"], "goals_against": total["ga"],
-        "goals_for_per_match": ratio(total["gf"], total["n"]),
-        "goals_against_per_match": ratio(total["ga"], total["n"]),
-        "form_last_5": "".join(m["result"] for m in reversed(last5_matches)),
-        "last_5_win_rate": ratio(last5["won"], last5["n"]),
-        "last_5_goals_for_per_match": ratio(last5["gf"], last5["n"]),
-        "last_5_goals_against_per_match": ratio(last5["ga"], last5["n"]),
-        "last_5_matches": last5_matches,
-        "home": split([m for m in matches if m["is_home"]]),
-        "away": split([m for m in matches if not m["is_home"]]),
-        "points_progress": progress,
+        **compute_team_stats(rows),
     }
 
 def _background_sync(league_id: int, season: int, force: bool) -> None:
@@ -318,9 +265,15 @@ def _background_sync(league_id: int, season: int, force: bool) -> None:
     except Exception:
         log.exception("Background sync failed (league=%s, season=%s)", league_id, season)
 
+def _is_admin(token: str | None) -> bool:
+    expected = settings.admin_token
+    return bool(expected) and secrets.compare_digest((token or "").encode(), expected.encode())
 
 @app.post("/sync", status_code=202)
-def trigger_sync(body: SyncRequest, background: BackgroundTasks):
+def trigger_sync(body: SyncRequest, background: BackgroundTasks, x_admin_token: str | None = Header(default=None)):
+    if body.force and not _is_admin(x_admin_token):
+        raise HTTPException(403, "force requires a valid admin token (disabled when ADMIN_TOKEN is not configured)")
+    
     try:
         preflight(body.league_id, body.season, body.force)
     except SyncAlreadyRunning as exc:
